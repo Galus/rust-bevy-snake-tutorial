@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::render::pass::ClearColor;
 
 struct SnakeHead;
 struct Materials {
@@ -109,20 +110,20 @@ fn position_translation(windows: Res<Windows>, mut q: Query<(&Position, &mut Tra
 
 fn snake_movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut head_positions: Query<With<SnakeHead, &mut Transform>>,
+    mut head_positions: Query<With<SnakeHead, &mut Position>>,
 ) {
-    for mut transform in head_positions.iter_mut() {
+    for mut pos in head_positions.iter_mut() {
         if keyboard_input.pressed(KeyCode::Left) {
-            *transform.translation.x_mut() -= 2.;
+            pos.x -= 1;
         }
         if keyboard_input.pressed(KeyCode::Right) {
-            *transform.translation.x_mut() += 2.;
+            pos.x += 1;
         }
         if keyboard_input.pressed(KeyCode::Down) {
-            *transform.translation.y_mut() -= 2.;
+            pos.y -= 1;
         }
         if keyboard_input.pressed(KeyCode::Up) {
-            *transform.translation.y_mut() += 2.;
+            pos.y += 1;
         }
     }
 }
@@ -135,6 +136,7 @@ fn main() {
             height: 2000,
             ..Default::default()
         })
+        .add_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
         .add_startup_system(setup.system())
         .add_startup_stage("game_setup")
         .add_startup_system_to_stage("game_setup", spawn_snake.system())
