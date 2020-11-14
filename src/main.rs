@@ -1,9 +1,19 @@
 use bevy::prelude::*;
 use bevy::render::pass::ClearColor;
+use rand::prelude::random;
 
 struct SnakeHead;
 struct Materials {
     head_material: Handle<ColorMaterial>,
+    food_material: Handle<ColorMaterial>,
+}
+
+struct Food;
+struct FoodSpawnTimer(Timer);
+impl Default for FoodSpawnTimer {
+    fn default() -> Self {
+        Self(Timer::from_seconds(1.0, true))
+    }
 }
 
 const ARENA_W: u32 = 10;
@@ -25,6 +35,28 @@ impl Size {
     }
 }
 
+fn food_spawner(
+    mut commands: Commands,
+    materials: Res<Materials>,
+    time: Res<Time>,
+    mut timer: Local<FoodSpawnTimer>,
+) {
+    timer.0.tick(time.delta_seconds);
+    if timer.0.finished {
+        commands
+            .spawn(SpriteComponents {
+                material: materials.food_material.clone(),
+                ..Default::default()
+            })
+            .with(Food)
+            .with(Position {
+                x: (random::<f32>() * ARENA_W as f32) as i32,
+                y: (random::<f32>() * ARENA_H as f32) as i32,
+            })
+            .with(Size::square(0.8));
+    }
+}
+
 /*
  * ColorMaterial .add returns a Handle<ColorMaterial>
  */
@@ -37,6 +69,7 @@ fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
     commands.spawn(Camera2dComponents::default());
     commands.insert_resource(Materials {
         head_material: materials.add(Color::rgb(0.7, 0.7, 0.7).into()),
+        food_material: materials.add(Color::rgb(1.0, 0.0, 1.0).into()),
     });
 }
 
@@ -143,6 +176,7 @@ fn main() {
         .add_system(snake_movement.system())
         .add_system(position_translation.system())
         .add_system(size_scaling.system())
+        .add_system(food_spawner.system())
         .add_plugins(DefaultPlugins)
         .run();
 }
