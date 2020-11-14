@@ -2,7 +2,28 @@ use bevy::prelude::*;
 use bevy::render::pass::ClearColor;
 use rand::prelude::random;
 
-struct SnakeHead;
+#[derive(PartialEq, Copy, Clone)]
+enum Direction {
+    Left,
+    Up,
+    Right,
+    Down,
+}
+impl Direction {
+    fn opposite(self) -> Self {
+        match self {
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+            Self::Up => Self::Down,
+            Self::Down => Self::Up,
+        }
+    }
+}
+
+struct SnakeHead {
+    direction: Direction,
+}
+
 struct Materials {
     head_material: Handle<ColorMaterial>,
     food_material: Handle<ColorMaterial>,
@@ -34,6 +55,8 @@ impl Size {
         }
     }
 }
+
+struct SnakeMoveTimer(Timer);
 
 fn food_spawner(
     mut commands: Commands,
@@ -80,7 +103,9 @@ fn spawn_snake(mut commands: Commands, materials: Res<Materials>) {
             sprite: Sprite::new(Vec2::new(10.0, 10.0)),
             ..Default::default()
         })
-        .with(SnakeHead)
+        .with(SnakeHead {
+            direction: Direction::Up,
+        })
         .with(Position { x: 3, y: 3 })
         .with(Size::square(0.8));
 }
@@ -143,22 +168,48 @@ fn position_translation(windows: Res<Windows>, mut q: Query<(&Position, &mut Tra
 
 fn snake_movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut head_positions: Query<With<SnakeHead, &mut Position>>,
+    snake_timer: ResMut<SnakeMoveTimer>,
+    mut heads: Query<(Entity, &mut SnakeHead)>,
+    mut positions: Query<&mut Position>,
 ) {
-    for mut pos in head_positions.iter_mut() {
-        if keyboard_input.pressed(KeyCode::Left) {
-            pos.x -= 1;
+    if let Some((head_entity, mut head)) = heads.iter_mut().next() {
+        let mut head_pos = positions.get_mut(head_entity).unwrap();
+        let dir: Direction = if keyboard_input.pressed(KeyCode::Left) {
+            Direction::Left
+        } else if keyboard_input.pressed(KeyCode::Down) {
+            Direction::Down
+        } else if keyboard_input.pressed(KeyCode::Up) {
+            Direction::Up
+        } else if keyboard_input.pressed(KeyCode::Right) {
+            Direction::Right
+        } else {
+            head.direction
+        };
+        if dir != head.direction.opposite() {
+            head.direction = dir;
         }
-        if keyboard_input.pressed(KeyCode::Right) {
-            pos.x += 1;
+        if !snake_timer.0.finished {
+            return;
         }
-        if keyboard_input.pressed(KeyCode::Down) {
-            pos.y -= 1;
-        }
-        if keyboard_input.pressed(KeyCode::Up) {
-            pos.y += 1;
-        }
+        match &head.direction {
+            Direction::Left => {
+                head_pos.x -= 1;
+            }
+            Direction::Right => {
+                head_pos.x += 1;
+            }
+            Direction::Up => {
+                head_pos.y += 1;
+            }
+            Direction::Down => {
+                head_pos.y -= 1;
+            }
+        };
     }
+}
+
+fn snake_timer(time: Res<Time>, mut snake_timer: ResMut<SnakeMoveTimer>) {
+    snake_timer.0.tick(time.delta_seconds);
 }
 
 fn main() {
@@ -170,6 +221,7 @@ fn main() {
             ..Default::default()
         })
         .add_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
+        .add_resource(SnakeMoveTimer(Timer::from_seconds(0.15, true)))
         .add_startup_system(setup.system())
         .add_startup_stage("game_setup")
         .add_startup_system_to_stage("game_setup", spawn_snake.system())
@@ -177,6 +229,7 @@ fn main() {
         .add_system(position_translation.system())
         .add_system(size_scaling.system())
         .add_system(food_spawner.system())
+        .add_system(snake_timer.system())
         .add_plugins(DefaultPlugins)
         .run();
 }
