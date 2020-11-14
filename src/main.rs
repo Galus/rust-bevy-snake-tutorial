@@ -54,10 +54,26 @@ fn spawn_snake(mut commands: Commands, materials: Res<Materials>) {
 fn size_scaling(windows: Res<Windows>, mut q: Query<(&Size, &mut Sprite)>) {
     let window = windows.get_primary().unwrap();
     for (sprite_size, mut sprite) in q.iter_mut() {
+        println!(" sprite.size {}", sprite.size);
+        println!(" sprite_size.width {}", sprite_size.width);
+        println!(" sprite_size.height {}", sprite_size.height);
         sprite.size = Vec2::new(
             sprite_size.width / ARENA_W as f32 * window.width() as f32,
             sprite_size.height / ARENA_H as f32 * window.height() as f32,
         );
+        println!(
+            "w {} / {} * {} ",
+            sprite_size.width,
+            ARENA_W,
+            window.width()
+        );
+        println!(
+            "h {} / {} * {} ",
+            sprite_size.height,
+            ARENA_H,
+            window.height()
+        );
+        println!("new sprite.size {}", sprite.size);
     }
 }
 
@@ -113,6 +129,12 @@ fn snake_movement(
 
 fn main() {
     App::build()
+        .add_resource(WindowDescriptor {
+            title: "Snake!".to_string(),
+            width: 2000,
+            height: 2000,
+            ..Default::default()
+        })
         .add_startup_system(setup.system())
         .add_startup_stage("game_setup")
         .add_startup_system_to_stage("game_setup", spawn_snake.system())
