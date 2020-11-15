@@ -29,7 +29,7 @@ struct Food;
 struct FoodSpawnTimer(Timer);
 impl Default for FoodSpawnTimer {
     fn default() -> Self {
-        Self(Timer::from_seconds(1.0, true))
+        Self(Timer::from_seconds(2.0, true))
     }
 }
 
@@ -338,7 +338,7 @@ fn main() {
             ..Default::default()
         })
         .add_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
-        .add_resource(SnakeMoveTimer(Timer::from_seconds(0.15, true)))
+        .add_resource(SnakeMoveTimer(Timer::from_seconds(0.3, true)))
         .add_resource(SnakeSegments::default())
         .add_resource(LastTailPosition::default())
         .add_startup_system(setup.system())
