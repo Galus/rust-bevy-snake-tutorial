@@ -72,6 +72,10 @@ struct SnakeSegment;
 #[derive(Default)]
 struct SnakeSegments(Vec<Entity>);
 
+struct GrowthEvent;
+
+struct GameOverEvent;
+
 fn food_spawner(
     mut commands: Commands,
     materials: Res<Materials>,
@@ -184,8 +188,6 @@ fn position_translation(windows: Res<Windows>, mut q: Query<(&Position, &mut Tra
     }
 }
 
-struct GrowthEvent;
-
 fn snake_eating(
     mut commands: Commands,
     snake_timer: ResMut<SnakeMoveTimer>,
@@ -208,6 +210,7 @@ fn snake_eating(
 fn snake_movement(
     keyboard_input: Res<Input<KeyCode>>,
     snake_timer: ResMut<SnakeMoveTimer>,
+    mut game_over_events: ResMut<Events<GameOverEvent>>,
     mut last_tail_position: ResMut<LastTailPosition>,
     segments: ResMut<SnakeSegments>,
     mut heads: Query<(Entity, &mut SnakeHead)>,
@@ -251,6 +254,16 @@ fn snake_movement(
                 head_pos.y -= 1;
             }
         };
+        if head_pos.x < 0
+            || head_pos.y < 0
+            || head_pos.x as u32 >= ARENA_W
+            || head_pos.y as u32 >= ARENA_H
+        {
+            game_over_events.send(GameOverEvent);
+        }
+        if segment_positions.contains(&head_pos) {
+            game_over_events.send(GameOverEvent);
+        }
         segment_positions
             .iter()
             .zip(segments.0.iter().skip(1))
@@ -299,6 +312,23 @@ fn spawn_segment(
         .unwrap()
 }
 
+fn game_over(
+    mut commands: Commands,
+    mut reader: Local<EventReader<GameOverEvent>>,
+    game_over_events: Res<Events<GameOverEvent>>,
+    materials: Res<Materials>,
+    segments_res: ResMut<SnakeSegments>,
+    food: Query<With<Food, Entity>>,
+    segments: Query<With<SnakeSegment, Entity>>,
+) {
+    if reader.iter(&game_over_events).next().is_some() {
+        for ent in food.iter().chain(segments.iter()) {
+            commands.despawn(ent);
+        }
+        spawn_snake(commands, materials, segments_res);
+    }
+}
+
 fn main() {
     App::build()
         .add_resource(WindowDescriptor {
@@ -321,7 +351,9 @@ fn main() {
         .add_system(snake_timer.system())
         .add_system(snake_eating.system())
         .add_system(snake_growth.system())
+        .add_system(game_over.system())
         .add_event::<GrowthEvent>()
+        .add_event::<GameOverEvent>()
         .add_plugins(DefaultPlugins)
         .run();
 }
